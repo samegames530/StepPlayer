@@ -1,0 +1,141 @@
+using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public sealed class ResultScene : MonoBehaviour
+{
+    [Header("Rows")]
+    [SerializeField] ResultJudgementRowView rowMarvelous;
+    [SerializeField] ResultJudgementRowView rowPerfect;
+    [SerializeField] ResultJudgementRowView rowGreat;
+    [SerializeField] ResultJudgementRowView rowGood;
+    [SerializeField] ResultJudgementRowView rowBad;
+    [SerializeField] ResultJudgementRowView rowMiss;
+    [SerializeField] ResultJudgementRowView rowMaxCombo;
+    [SerializeField] TMP_Text scoreText;
+    [SerializeField] TMP_Text danceLevelText;
+    [SerializeField] TMP_Text songTitleText;
+    [SerializeField] TMP_Text musicSourceText;
+
+    bool isCleared = true;
+
+    void Start()
+    {
+        if (!ResultStore.HasSummary)
+        {
+            SetAllZero();
+            return;
+        }
+
+        var s = ResultStore.Summary;
+
+        rowMarvelous.Set(Judgement.Marvelous, s.GetCount(Judgement.Marvelous));
+        rowPerfect.Set(Judgement.Perfect, s.GetCount(Judgement.Perfect));
+        rowGreat.Set(Judgement.Great, s.GetCount(Judgement.Great));
+        rowGood.Set(Judgement.Good, s.GetCount(Judgement.Good));
+        rowBad.Set(Judgement.Bad, s.GetCount(Judgement.Bad));
+        rowMiss.Set(Judgement.Miss, s.MissCount);
+
+        if (rowMaxCombo != null)
+            rowMaxCombo.SetMaxCombo(s.MaxCombo);
+
+        if (scoreText != null)
+            scoreText.text = $"{s.Score:0000000} SCORE";
+
+        if (danceLevelText != null)
+            danceLevelText.text = s.DanceLevel;
+
+        SetSongInfoText();
+
+        // クリア判定（※プロジェクト仕様に応じて調整可）
+        isCleared = s.MissCount < s.TotalNotes;
+
+        ResultStore.Clear();
+    }
+
+    void SetAllZero()
+    {
+        rowMarvelous.Set(Judgement.Marvelous, 0);
+        rowPerfect.Set(Judgement.Perfect, 0);
+        rowGreat.Set(Judgement.Great, 0);
+        rowGood.Set(Judgement.Good, 0);
+        rowBad.Set(Judgement.Bad, 0);
+        rowMiss.Set(Judgement.Miss, 0);
+
+        if (rowMaxCombo != null)
+            rowMaxCombo.SetMaxCombo(0);
+
+        if (scoreText != null)
+            scoreText.text = "0000000 SCORE";
+
+        if (danceLevelText != null)
+            danceLevelText.text = ScoreCalculator.GetDanceLevel(0);
+
+        SetSongInfoText();
+    }
+
+    void SetSongInfoText()
+    {
+        if (songTitleText != null)
+            songTitleText.text = ResultStore.SongTitle ?? string.Empty;
+
+        if (musicSourceText != null)
+            musicSourceText.text = BuildMusicSourceText();
+    }
+
+    static string BuildMusicSourceText()
+    {
+        var source = ResultStore.MusicSource ?? string.Empty;
+        var difficulty = ResultStore.ChartDifficulty?.ToString();
+
+        if (string.IsNullOrEmpty(source))
+            return difficulty ?? string.Empty;
+
+        if (string.IsNullOrEmpty(difficulty))
+            return source;
+
+        return $"{source} / {difficulty}";
+    }
+
+    // --------------------
+    // ボタン処理
+    // --------------------
+
+    public void Retry()
+    {
+        ResultStore.Clear();
+        SceneManager.LoadScene(nameof(PlayScene));
+    }
+
+    public void GoNext()
+    {
+        ResultStore.Clear();
+
+        // FREEPLAY（Arcade中でなければ）
+        if (!ArcadeRunState.IsRunning)
+        {
+            SceneManager.LoadScene(nameof(SongSelectScene));
+            return;
+        }
+
+        // ARCADE：FAILED
+        if (!isCleared)
+        {
+            ArcadeRunState.EndRun();
+            SceneManager.LoadScene("FinalResultScene");
+            return;
+        }
+
+        // ARCADE：FINAL CLEAR
+        if (ArcadeRunState.IsFinished)
+        {
+            ArcadeRunState.EndRun();
+            SceneManager.LoadScene("FinalResultScene");
+        }
+        else
+        {
+            // 次ステージ選曲
+            SceneManager.LoadScene("ArcadeSongSelectScene");
+        }
+    }
+}

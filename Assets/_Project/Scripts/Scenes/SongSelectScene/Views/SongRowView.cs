@@ -1,0 +1,35 @@
+﻿using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+public sealed class SongRowView : MonoBehaviour
+{
+    [SerializeField] Button button;
+    [SerializeField] TMP_Text titleText;
+    [SerializeField] TMP_Text sourceText;
+    [SerializeField] Image background;
+
+    [Header("Colors")]
+    [SerializeField] Color normalColor = Color.white;
+    [SerializeField] Color selectedColor = new(0.7f, 0.85f, 1f);
+
+    int index;
+    SongSelectScene owner;
+
+    public void Bind(SongSelectScene owner, int index, SongMeta song)
+    {
+        this.owner = owner;
+        this.index = index;
+
+        titleText.text = song.DisplayTitle;
+        sourceText.text = string.IsNullOrWhiteSpace(song.Artist) ? string.Empty : song.Artist;
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => owner.OnRowClicked(index));
+    }
+
+    public void SetSelected(bool selected)
+    {
+        background.color = selected ? selectedColor : normalColor;
+    }
+}
